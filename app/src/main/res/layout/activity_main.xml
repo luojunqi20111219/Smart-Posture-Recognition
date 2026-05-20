@@ -70,50 +70,54 @@
 
             <Button
                 android:id="@+id/btnModeChest"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="扩胸"
-                android:textSize="12sp"
-                android:paddingHorizontal="16dp"
+                android:textSize="11sp"
+                android:paddingHorizontal="4dp"
                 android:paddingVertical="8dp"
                 android:backgroundTint="#4CAF50"
                 android:textColor="#FFFFFF" />
 
             <Button
                 android:id="@+id/btnModeLeg"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="高抬腿"
-                android:textSize="12sp"
-                android:paddingHorizontal="16dp"
+                android:textSize="11sp"
+                android:paddingHorizontal="4dp"
                 android:paddingVertical="8dp"
                 android:backgroundTint="#666666"
                 android:textColor="#FFFFFF"
-                android:layout_marginStart="12dp" />
+                android:layout_marginStart="6dp" />
 
             <Button
                 android:id="@+id/btnModeSquat"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="深蹲"
-                android:textSize="12sp"
-                android:paddingHorizontal="16dp"
+                android:textSize="11sp"
+                android:paddingHorizontal="4dp"
                 android:paddingVertical="8dp"
                 android:backgroundTint="#666666"
                 android:textColor="#FFFFFF"
-                android:layout_marginStart="12dp" />
+                android:layout_marginStart="6dp" />
 
             <Button
                 android:id="@+id/btnModePushup"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:text="俯卧撑"
-                android:textSize="12sp"
-                android:paddingHorizontal="16dp"
+                android:textSize="11sp"
+                android:paddingHorizontal="4dp"
                 android:paddingVertical="8dp"
                 android:backgroundTint="#666666"
                 android:textColor="#FFFFFF"
-                android:layout_marginStart="12dp" />
+                android:layout_marginStart="6dp" />
         </LinearLayout>
     </LinearLayout>
 
