@@ -32,11 +32,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnToggleSound: Button
     private lateinit var btnModeChest: Button
     private lateinit var btnModeLeg: Button
+    private lateinit var btnModeSquat: Button
+    private lateinit var btnModePushup: Button
 
     private var cameraProvider: ProcessCameraProvider? = null
     private var isFrontCamera = true
     private var isSoundEnabled = true
-    private var currentMode = "chest" // "chest" 或 "leg"
+    private var currentMode = "chest" // "chest" | "leg" | "squat" | "pushup"
     private var textToSpeech: TextToSpeech? = null
     private var lastSpokenStatus: String = ""
     private var lastSpeakTime: Long = 0
@@ -59,6 +61,8 @@ class MainActivity : AppCompatActivity() {
         btnToggleSound = findViewById(R.id.btnToggleSound)
         btnModeChest = findViewById(R.id.btnModeChest)
         btnModeLeg = findViewById(R.id.btnModeLeg)
+        btnModeSquat = findViewById(R.id.btnModeSquat)
+        btnModePushup = findViewById(R.id.btnModePushup)
 
         btnSwitchCamera.setOnClickListener {
             isFrontCamera = !isFrontCamera
@@ -70,13 +74,10 @@ class MainActivity : AppCompatActivity() {
             btnToggleSound.text = if (isSoundEnabled) "🔊" else "🔇"
         }
 
-        btnModeChest.setOnClickListener {
-            setMode("chest")
-        }
-
-        btnModeLeg.setOnClickListener {
-            setMode("leg")
-        }
+        btnModeChest.setOnClickListener { setMode("chest") }
+        btnModeLeg.setOnClickListener { setMode("leg") }
+        btnModeSquat.setOnClickListener { setMode("squat") }
+        btnModePushup.setOnClickListener { setMode("pushup") }
 
         // 初始化 TTS
         textToSpeech = TextToSpeech(this) { status ->
@@ -96,13 +97,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun setMode(mode: String) {
         currentMode = mode
-        if (mode == "chest") {
-            btnModeChest.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_green_dark)
-            btnModeLeg.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.darker_gray)
-        } else {
-            btnModeChest.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.darker_gray)
-            btnModeLeg.backgroundTintList = ContextCompat.getColorStateList(this, android.R.color.holo_green_dark)
-        }
+        val activeColor = ContextCompat.getColorStateList(this, android.R.color.holo_green_dark)
+        val inactiveColor = ContextCompat.getColorStateList(this, android.R.color.darker_gray)
+        btnModeChest.backgroundTintList = if (mode == "chest") activeColor else inactiveColor
+        btnModeLeg.backgroundTintList   = if (mode == "leg")   activeColor else inactiveColor
+        btnModeSquat.backgroundTintList = if (mode == "squat") activeColor else inactiveColor
+        btnModePushup.backgroundTintList= if (mode == "pushup")activeColor else inactiveColor
     }
 
     private fun speak(text: String) {
@@ -171,10 +171,11 @@ class MainActivity : AppCompatActivity() {
                 .addOnSuccessListener { pose ->
                     val allLandmarks = pose.allPoseLandmarks
                     if (allLandmarks.isNotEmpty()) {
-                        if (currentMode == "chest") {
-                            evaluateChestExpansion(allLandmarks)
-                        } else {
-                            evaluateHighKnee(allLandmarks)
+                        when (currentMode) {
+                            "chest"  -> evaluateChestExpansion(allLandmarks)
+                            "leg"    -> evaluateHighKnee(allLandmarks)
+                            "squat"  -> evaluateSquat(allLandmarks)
+                            "pushup" -> evaluatePushup(allLandmarks)
                         }
                     } else {
                         tvStatus.text = "🔄 请将身体完全对准摄像头"
@@ -190,6 +191,141 @@ class MainActivity : AppCompatActivity() {
         } else {
             imageProxy.close()
         }
+    }
+
+    // ========== 深蹲姿态识别 ==========
+    private fun evaluateSquat(landmarks: List<PoseLandmark>) {
+        val lmMap = landmarks.associateBy { it.landmarkType }
+        val ls = lmMap[PoseLandmark.LEFT_SHOULDER]
+        val rs = lmMap[PoseLandmark.RIGHT_SHOULDER]
+        val lh = lmMap[PoseLandmark.LEFT_HIP]
+        val rh = lmMap[PoseLandmark.RIGHT_HIP]
+        val lk = lmMap[PoseLandmark.LEFT_KNEE]
+        val rk = lmMap[PoseLandmark.RIGHT_KNEE]
+        val la = lmMap[PoseLandmark.LEFT_ANKLE]
+        val ra = lmMap[PoseLandmark.RIGHT_ANKLE]
+
+        if (ls == null || rs == null || lh == null || rh == null ||
+            lk == null || rk == null || la == null || ra == null) return
+
+        fun calcAngle(p1: PoseLandmark, p2: PoseLandmark, p3: PoseLandmark): Double {
+            val ax = (p1.position.x - p2.position.x).toDouble()
+            val ay = (p1.position.y - p2.position.y).toDouble()
+            val bx = (p3.position.x - p2.position.x).toDouble()
+            val by = (p3.position.y - p2.position.y).toDouble()
+            val dot = ax * bx + ay * by
+            val magA = hypot(ax, ay)
+            val magB = hypot(bx, by)
+            if (magA < 0.001 || magB < 0.001) return 180.0
+            return acos((dot / (magA * magB)).coerceIn(-1.0, 1.0)) * 180 / Math.PI
+        }
+
+        val leftKneeAngle  = calcAngle(lh, lk, la)
+        val rightKneeAngle = calcAngle(rh, rk, ra)
+        val avgKnee = (leftKneeAngle + rightKneeAngle) / 2
+
+        val leftHipAngle  = calcAngle(ls, lh, lk)
+        val rightHipAngle = calcAngle(rs, rh, rk)
+        val avgHip = (leftHipAngle + rightHipAngle) / 2
+
+        var isStandard = false
+        val statusText: String
+
+        when {
+            avgKnee > 160 -> {
+                statusText = "请开始下蹲"
+                tvStatus.text = "🔄 $statusText"
+            }
+            avgHip < 60 -> {
+                statusText = "上半身前倾太多，背部挺直"
+                tvStatus.text = "⚠️ $statusText"
+            }
+            avgKnee < 70 -> {
+                statusText = "蹲得太低了，膝盖不要超过脚尖太多"
+                tvStatus.text = "🔺 $statusText"
+            }
+            avgKnee in 90.0..160.0 && avgHip in 60.0..120.0 -> {
+                isStandard = true
+                statusText = "深蹲动作标准，继续保持"
+                tvStatus.text = "✅ $statusText"
+            }
+            else -> {
+                statusText = "膝盖弯曲90-160度，背部挺直"
+                tvStatus.text = "🔄 $statusText"
+            }
+        }
+
+        tvMetrics.text = String.format("膝盖: %.0f° | 髋部: %.0f°", avgKnee, avgHip)
+        speak(statusText)
+        poseOverlayView.updatePose(landmarks, isStandard)
+    }
+
+    // ========== 俯卧撑姿态识别 ==========
+    private fun evaluatePushup(landmarks: List<PoseLandmark>) {
+        val lmMap = landmarks.associateBy { it.landmarkType }
+        val ls = lmMap[PoseLandmark.LEFT_SHOULDER]
+        val rs = lmMap[PoseLandmark.RIGHT_SHOULDER]
+        val le = lmMap[PoseLandmark.LEFT_ELBOW]
+        val re = lmMap[PoseLandmark.RIGHT_ELBOW]
+        val lw = lmMap[PoseLandmark.LEFT_WRIST]
+        val rw = lmMap[PoseLandmark.RIGHT_WRIST]
+        val lh = lmMap[PoseLandmark.LEFT_HIP]
+        val rh = lmMap[PoseLandmark.RIGHT_HIP]
+
+        if (ls == null || rs == null || le == null || re == null ||
+            lw == null || rw == null || lh == null || rh == null) return
+
+        fun calcAngle(p1: PoseLandmark, p2: PoseLandmark, p3: PoseLandmark): Double {
+            val ax = (p1.position.x - p2.position.x).toDouble()
+            val ay = (p1.position.y - p2.position.y).toDouble()
+            val bx = (p3.position.x - p2.position.x).toDouble()
+            val by = (p3.position.y - p2.position.y).toDouble()
+            val dot = ax * bx + ay * by
+            val magA = hypot(ax, ay)
+            val magB = hypot(bx, by)
+            if (magA < 0.001 || magB < 0.001) return 180.0
+            return acos((dot / (magA * magB)).coerceIn(-1.0, 1.0)) * 180 / Math.PI
+        }
+
+        val leftElbow  = calcAngle(ls, le, lw)
+        val rightElbow = calcAngle(rs, re, rw)
+        val avgElbow = (leftElbow + rightElbow) / 2
+
+        // 身体直线度：肩-髋-膝角度（简化，用肩-髋和髋-虚拟膝近似）
+        val shoulderY = (ls.position.y + rs.position.y) / 2f
+        val hipY = (lh.position.y + rh.position.y) / 2f
+        val bodyStraight = kotlin.math.abs(shoulderY - hipY) < 50  // 像素阈值
+
+        var isStandard = false
+        val statusText: String
+
+        when {
+            avgElbow > 160 -> {
+                statusText = "请开始下降"
+                tvStatus.text = "🔄 $statusText"
+            }
+            !bodyStraight -> {
+                statusText = "身体保持直线，不要塌腰或撅臀"
+                tvStatus.text = "⚠️ $statusText"
+            }
+            avgElbow < 45 -> {
+                statusText = "下降太深了，手肘约90度即可"
+                tvStatus.text = "🔺 $statusText"
+            }
+            avgElbow in 45.0..100.0 && bodyStraight -> {
+                isStandard = true
+                statusText = "俯卧撑动作标准，继续保持"
+                tvStatus.text = "✅ $statusText"
+            }
+            else -> {
+                statusText = "手肘弯曲45-100度，身体成直线"
+                tvStatus.text = "🔄 $statusText"
+            }
+        }
+
+        tvMetrics.text = String.format("手肘: %.0f° | 身体直线: %s", avgElbow, if (bodyStraight) "是" else "否")
+        speak(statusText)
+        poseOverlayView.updatePose(landmarks, isStandard)
     }
 
     // ========== 高抬腿姿态识别 ==========

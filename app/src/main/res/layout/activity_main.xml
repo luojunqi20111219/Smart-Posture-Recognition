@@ -90,6 +90,30 @@
                 android:backgroundTint="#666666"
                 android:textColor="#FFFFFF"
                 android:layout_marginStart="12dp" />
+
+            <Button
+                android:id="@+id/btnModeSquat"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="深蹲"
+                android:textSize="12sp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"
+                android:backgroundTint="#666666"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="12dp" />
+
+            <Button
+                android:id="@+id/btnModePushup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="俯卧撑"
+                android:textSize="12sp"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="8dp"
+                android:backgroundTint="#666666"
+                android:textColor="#FFFFFF"
+                android:layout_marginStart="12dp" />
         </LinearLayout>
     </LinearLayout>
 
